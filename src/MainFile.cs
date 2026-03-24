@@ -1,6 +1,7 @@
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Nodes.Cards;
 
 namespace Skew;
 
@@ -33,16 +34,13 @@ public partial class MainFile : Node
         if (!control.IsNodeReady())
             await tree.ToSignal(node, Node.SignalName.Ready);
 
-        switch (control.Name)
+        if (control is NCard card && card.Name == "Card")
         {
-            case "Card":
-                Shaders.ApplyShader(control);
-                break;
-            case "InspectCardScreen":
-                InspectScreen.AddButtons(control);
-                break;
-            default:
-                return;
+            ShaderController.ApplyShader(card);
+        }
+        else if (control.Name == "InspectCardScreen")
+        {
+            InspectScreen.AddButtons(control);
         }
     }
 }

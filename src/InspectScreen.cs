@@ -2,6 +2,7 @@ using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Cards;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.InspectScreens;
 using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
@@ -77,7 +78,11 @@ public partial class InspectScreen
             {
                 _label.SetTextAutoSize(_options[_currentIndex]);
             }
+            OnIndexChanged(_currentIndex);
         }
+
+        private static AccessTools.FieldRef<NInspectCardScreen, NCard> CardFieldRef =
+            AccessTools.FieldRefAccess<NInspectCardScreen, NCard>("_card");
 
         protected override void OnIndexChanged(int index)
         {
@@ -87,8 +92,11 @@ public partial class InspectScreen
         }
     }
 
+    private static AccessTools.FieldRef<NInspectCardScreen, NCard> CardFieldRef =
+        AccessTools.FieldRefAccess<NInspectCardScreen, NCard>("_card");
+
     [HarmonyPatch(typeof(NInspectCardScreen), "SetCard")]
-    public static class Patch_InspectScreen_SetCard
+    public static class SetCardPatch
     {
         public static void Postfix(
             NInspectCardScreen __instance,
@@ -98,6 +106,9 @@ public partial class InspectScreen
         {
             if (____cards is null || index < 0 || index >= ____cards.Count)
                 return;
+
+            var cardNode = CardFieldRef(__instance);
+            ShaderController.ApplyShader(cardNode);
 
             var paginator = __instance.GetNodeOrNull<FXPaginator>("SkewHBox/SkewFXPaginator");
 

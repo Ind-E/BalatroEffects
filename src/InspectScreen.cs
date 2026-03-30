@@ -17,7 +17,9 @@ public partial class InspectScreen
             root.FindChild("Upgrade") is not NUpgradePreviewTickbox upgrade
             || root.HasNode("BalatroEffectsPaginator")
         )
+        {
             return;
+        }
 
         var paginatorScene = GD.Load<PackedScene>("res://scenes/screens/paginator.tscn");
         var paginator = (Control)paginatorScene.Instantiate();
@@ -51,7 +53,7 @@ public partial class InspectScreen
             )(this);
             vfxField = (MegaLabel)FindChild("VfxLabel");
 
-            _options.AddRange(new[] { "None", "Foil", "Negative", "Polychrome", "Holographic" });
+            _options.AddRange(["None", "Foil", "Negative", "Polychrome", "Holographic"]);
 
             _currentIndex = Config.GetIndex(cardId);
             _currentIndex = Mathf.Clamp(_currentIndex, 0, _options.Count - 1);
@@ -74,15 +76,9 @@ public partial class InspectScreen
             int savedIndex = Config.GetIndex(cardId);
             _currentIndex = Mathf.Clamp(savedIndex, 0, _options.Count - 1);
 
-            if (_label != null)
-            {
-                _label.SetTextAutoSize(_options[_currentIndex]);
-            }
+            _label?.SetTextAutoSize(_options[_currentIndex]);
             OnIndexChanged(_currentIndex);
         }
-
-        private static AccessTools.FieldRef<NInspectCardScreen, NCard> CardFieldRef =
-            AccessTools.FieldRefAccess<NInspectCardScreen, NCard>("_card");
 
         protected override void OnIndexChanged(int index)
         {
@@ -92,7 +88,7 @@ public partial class InspectScreen
         }
     }
 
-    private static AccessTools.FieldRef<NInspectCardScreen, NCard> CardFieldRef =
+    private static readonly AccessTools.FieldRef<NInspectCardScreen, NCard> CardFieldRef =
         AccessTools.FieldRefAccess<NInspectCardScreen, NCard>("_card");
 
     [HarmonyPatch(typeof(NInspectCardScreen), "SetCard")]

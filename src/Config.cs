@@ -9,7 +9,7 @@ public static class Config
     private static readonly string FilePath = Path.Combine(FolderPath, "BalatroEffectsConfig.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
-    public static Dictionary<string, int> CardSettings { get; private set; } = new();
+    public static Dictionary<string, int> CardSettings { get; private set; } = [];
 
     public static void Load()
     {
@@ -28,7 +28,7 @@ public static class Config
                 CardSettings = data;
             }
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
             MainFile.Logger.Error($"Failed to load config: {e.Message}");
         }
@@ -46,7 +46,7 @@ public static class Config
             string json = JsonSerializer.Serialize(CardSettings, Options);
             File.WriteAllText(FilePath, json);
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
             MainFile.Logger.Error($"Failed to save config: {e.Message}");
         }

@@ -12,6 +12,7 @@ public partial class ShaderController
     private static readonly StringName _xRotKey = "x_rot";
     private static readonly StringName _yRotKey = "y_rot";
     private static readonly StringName _effectModeKey = "effect_mode";
+    private static readonly StringName _seedKey = "seed";
 
     private static readonly Shader EffectsShader = GD.Load<Shader>(
         "res://BalatroEffects/shaders/balatro_effects.gdshader"
@@ -31,6 +32,8 @@ public partial class ShaderController
         var size = new Vector2I(512, 512);
 
         var mat = new ShaderMaterial { Shader = EffectsShader };
+        float seed = cardRoot.GetHashCode() % 10000 / 10.0f;
+        mat.SetShaderParameter(_seedKey, seed);
 
         var viewportContainer = new ShaderContainer
         {

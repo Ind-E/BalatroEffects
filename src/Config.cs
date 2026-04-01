@@ -5,11 +5,21 @@ namespace BalatroEffects;
 
 public static class Config
 {
+    private const int CurrentVersion = 1;
+
     private static readonly string FolderPath = Path.Combine(OS.GetUserDataDir(), "mod_configs");
     private static readonly string FilePath = Path.Combine(FolderPath, "BalatroEffectsConfig.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
-    public static Dictionary<string, int> CardSettings { get; private set; } = [];
+    private class ConfigData
+    {
+        public int Version { get; set; } = CurrentVersion;
+        public Dictionary<string, int> EffectSettings { get; set; } = [];
+        public Dictionary<int, double> IntensitySettings { get; set; } = [];
+    }
+
+    public static Dictionary<string, int> EffectSettings { get; private set; } = [];
+    public static Dictionary<int, double> IntensitySettings { get; private set; } = [];
 
     public static void Load()
     {
@@ -22,10 +32,33 @@ public static class Config
             }
 
             string json = File.ReadAllText(FilePath);
-            var data = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
-            if (data != null)
+            using JsonDocument doc = JsonDocument.Parse(json);
+            JsonElement root = doc.RootElement;
+
+            if (!root.TryGetProperty("Version", out JsonElement versionElement))
             {
-                CardSettings = data;
+                MainFile.Logger.Info("V0 config detected. Migrating to V" + CurrentVersion);
+                var oldData = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
+                EffectSettings = oldData ?? [];
+                IntensitySettings = [];
+
+                Save();
+                return;
+            }
+
+            int fileVersion = versionElement.GetInt32();
+            if (fileVersion < CurrentVersion)
+            {
+                MainFile.Logger.Info("???");
+            }
+            else
+            {
+                var data = JsonSerializer.Deserialize<ConfigData>(json);
+                if (data != null)
+                {
+                    EffectSettings = data.EffectSettings ?? [];
+                    IntensitySettings = data.IntensitySettings ?? [];
+                }
             }
         }
         catch (Exception e)
@@ -43,7 +76,14 @@ public static class Config
                 Directory.CreateDirectory(FolderPath);
             }
 
-            string json = JsonSerializer.Serialize(CardSettings, Options);
+            var data = new ConfigData
+            {
+                Version = CurrentVersion,
+                EffectSettings = EffectSettings,
+                IntensitySettings = IntensitySettings,
+            };
+
+            string json = JsonSerializer.Serialize(data, Options);
             File.WriteAllText(FilePath, json);
         }
         catch (Exception e)
@@ -52,14 +92,25 @@ public static class Config
         }
     }
 
-    public static int GetIndex(string cardId)
+    public static int GetEffect(string cardId)
     {
-        return CardSettings.TryGetValue(cardId, out int val) ? val : 0;
+        return EffectSettings.TryGetValue(cardId, out int val) ? val : 0;
     }
 
-    public static void SetIndex(string cardId, int index)
+    public static void SetEffect(string cardId, int index)
     {
-        CardSettings[cardId] = index;
+        EffectSettings[cardId] = index;
+        Save();
+    }
+
+    public static double GetIntensity(int effectIndex, double defaultValue = 1.0f)
+    {
+        return IntensitySettings.TryGetValue(effectIndex, out double val) ? val : defaultValue;
+    }
+
+    public static void SetIntensity(int effectIndex, double value)
+    {
+        IntensitySettings[effectIndex] = Math.Clamp(value, 0.0f, 1.0f);
         Save();
     }
 }

@@ -12,6 +12,7 @@ public partial class ShaderController
     private static readonly StringName _xRotKey = "x_rot";
     private static readonly StringName _yRotKey = "y_rot";
     private static readonly StringName _effectModeKey = "effect_mode";
+    private static readonly StringName _intensityKey = "intensity";
     private static readonly StringName _seedKey = "seed";
 
     private static readonly Shader EffectsShader = GD.Load<Shader>(
@@ -58,8 +59,11 @@ public partial class ShaderController
         viewportContainer.AddChild(viewport);
         viewport.AddChild(cardContainer);
 
-        int savedIndex = Config.GetIndex(cardId);
-        mat.SetShaderParameter(_effectModeKey, savedIndex);
+        int savedEffect = Config.GetEffect(cardId);
+        mat.SetShaderParameter(_effectModeKey, savedEffect);
+
+        double savedIntensity = Config.GetIntensity(savedEffect);
+        mat.SetShaderParameter(_intensityKey, savedIntensity);
     }
 
     private partial class ShaderContainer : SubViewportContainer
@@ -69,7 +73,8 @@ public partial class ShaderController
 
         private Control? cardRoot;
         private NCardHolder? cardHolder;
-        private int lastAppliedIndex = -1;
+        private int lastAppliedEffect = -1;
+        private double lastAppliedIntensity = -1;
 
         public string? CardId;
         public ShaderMaterial? mat;
@@ -130,11 +135,18 @@ public partial class ShaderController
 
             if (!string.IsNullOrEmpty(CardId))
             {
-                int targetIndex = Config.GetIndex(CardId);
-                if (targetIndex != lastAppliedIndex)
+                int savedEffect = Config.GetEffect(CardId);
+                if (savedEffect != lastAppliedEffect)
                 {
-                    lastAppliedIndex = targetIndex;
-                    mat.SetShaderParameter(_effectModeKey, targetIndex);
+                    mat.SetShaderParameter(_effectModeKey, savedEffect);
+                    lastAppliedEffect = savedEffect;
+                }
+
+                double savedIntensity = Config.GetIntensity(savedEffect);
+                if (savedIntensity != lastAppliedIntensity)
+                {
+                    mat.SetShaderParameter(_intensityKey, savedIntensity);
+                    lastAppliedIntensity = savedIntensity;
                 }
             }
 

@@ -32,7 +32,7 @@ public partial class ShaderController
             return;
         }
 
-        var size = new Vector2I(370, 480);
+        var size = new Vector2I(480, 480);
 
         var mat = new ShaderMaterial { Shader = EffectsShader };
         float seed = cardRoot.GetHashCode() % 10000 / 10.0f;

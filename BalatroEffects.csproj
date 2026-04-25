@@ -7,6 +7,8 @@
         <DefaultItemExcludes>packages/**</DefaultItemExcludes>
         <AppOutputBase>$(MSBuildProjectDirectory)\</AppOutputBase>
         <PathMap>$(AppOutputBase)=.\</PathMap>
+
+        <Version>1.4.1</Version>
     </PropertyGroup>
 
     <!-- OS Detection -->
@@ -106,7 +108,7 @@
         <Message Text="Copying .dll and manifest to mods folder." Importance="high" />
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsPath)$(MSBuildProjectName)/" />
         <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ModsPath)$(MSBuildProjectName)/" />
-        <Copy SourceFiles="BalatroEffects.json" DestinationFolder="$(ModsPath)$(MSBuildProjectName)/" />
+        <Copy SourceFiles="$(MSBuildProjectName).json" DestinationFolder="$(ModsPath)$(MSBuildProjectName)/" />
     </Target>
 
     <Target Name="GodotPublish" AfterTargets="Publish" Condition="'$(GodotPath)' != '' and Exists('$(GodotPath)') and '$(IsInnerGodotExport)' != 'true'">
@@ -118,5 +120,49 @@
 
     <Target Name="GodotPublishSkipped" AfterTargets="Publish" Condition="'$(GodotPath)' == '' or !Exists('$(GodotPath)')">
         <Message Text="Skipping Godot .pck export because GodotPath is not configured." Importance="high"/>
+    </Target>
+
+    <Target Name="UpdateManifestVersion" BeforeTargets="BeforeBuild">
+        <PropertyGroup>
+            <ManifestPath>$(MSBuildProjectName).json</ManifestPath>
+        </PropertyGroup>
+
+        <PropertyGroup>
+            <OldContent>$([System.IO.File]::ReadAllText($(ManifestPath)))</OldContent>
+            <NewContent>$([System.Text.RegularExpressions.Regex]::Replace($(OldContent), '("version":\s*")[^"]*', '$1v$(Version)'))</NewContent>
+        </PropertyGroup>
+
+        <WriteLinesToFile
+                Condition="'$(OldContent)' != '$(NewContent)'"
+                File="$(ManifestPath)"
+                Lines="$(NewContent)"
+                Overwrite="true"
+                Encoding="UTF-8" />
+
+        <Message Condition="'$(OldContent)' != '$(NewContent)'"
+                 Text="Updated $(MSBuildProjectName).json to version $(Version)"
+                 Importance="high" />
+    </Target>
+
+    <Target Name="ZipRelease" AfterTargets="GodotPublish">
+        <PropertyGroup>
+            <StagingDir>$(TargetDir)Zip/</StagingDir>
+            <ZipFileName>$(TargetDir)$(MSBuildProjectName)_v$(Version).zip</ZipFileName>
+        </PropertyGroup>
+
+        <RemoveDir Directories="$(StagingDir)" />
+        <Delete Files="$(ZipFileName)" />
+
+        <MakeDir Directories="$(StagingDir)" />
+
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StagingDir)" />
+        <Copy SourceFiles="$(MSBuildProjectName).json" DestinationFolder="$(StagingDir)" />
+        <Copy SourceFiles="$(ModsPath)$(MSBuildProjectName)/$(MSBuildProjectName).pck" DestinationFolder="$(StagingDir)" />
+
+        <ZipDirectory SourceDirectory="$(StagingDir)" DestinationFile="$(ZipFileName)" Overwrite="true" />
+
+        <RemoveDir Directories="$(StagingDir)" />
+
+        <Message Text="Created zip file $(ZipFileName)" Importance="high" />
     </Target>
 </Project>

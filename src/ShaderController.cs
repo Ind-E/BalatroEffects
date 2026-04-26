@@ -4,7 +4,6 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes.Cards;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
-using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using static Godot.CanvasItem;
 
 namespace BalatroEffects;
@@ -72,20 +71,20 @@ public partial class ShaderController
         private const float MaxTilt = 16.0f;
         private const float LerpSpeed = 0.2f;
 
-        private Control? cardRoot;
-        private NCardHolder? cardHolder;
-        private int lastAppliedEffect = -1;
-        private double lastAppliedIntensity = -1;
+        private Control? _cardRoot;
+        private NCardHolder? _cardHolder;
+        private int _lastAppliedEffect = -1;
+        private double _lastAppliedIntensity = -1;
 
         public string? CardId;
         public ShaderMaterial? mat;
 
         public override void _Ready()
         {
-            cardRoot = GetParent<Control>();
+            _cardRoot = GetParent<Control>();
             mat = Material as ShaderMaterial;
 
-            if (string.IsNullOrEmpty(CardId) && cardRoot is NCard card)
+            if (string.IsNullOrEmpty(CardId) && _cardRoot is NCard card)
             {
                 CardId = card.Model?.Id?.ToString();
             }
@@ -103,10 +102,10 @@ public partial class ShaderController
                 }
             }
 
-            if (cardHolder == foundHolder || mat is null)
+            if (_cardHolder == foundHolder || mat is null)
                 return;
 
-            cardHolder = foundHolder;
+            _cardHolder = foundHolder;
 
             mat.SetShaderParameter(_xRotKey, 0f);
             mat.SetShaderParameter(_yRotKey, 0f);
@@ -114,7 +113,7 @@ public partial class ShaderController
 
         private void CheckForIdUpdate()
         {
-            if (cardRoot is NCard nCard)
+            if (_cardRoot is NCard nCard)
             {
                 string? currentModelId = nCard.Model?.Id?.ToString();
                 if (currentModelId != CardId)
@@ -124,12 +123,9 @@ public partial class ShaderController
             }
         }
 
-        static readonly AccessTools.FieldRef<NClickableControl, bool> IsHovered =
-            AccessTools.FieldRefAccess<NClickableControl, bool>("_isHovered");
-
         public override void _Process(double delta)
         {
-            if (mat is null || cardRoot is null)
+            if (mat is null || _cardRoot is null)
                 return;
 
             CheckForIdUpdate();
@@ -137,36 +133,36 @@ public partial class ShaderController
             if (!string.IsNullOrEmpty(CardId))
             {
                 int savedEffect = Config.GetEffect(CardId);
-                if (savedEffect != lastAppliedEffect)
+                if (savedEffect != _lastAppliedEffect)
                 {
                     mat.SetShaderParameter(_effectModeKey, savedEffect);
-                    lastAppliedEffect = savedEffect;
+                    _lastAppliedEffect = savedEffect;
                 }
 
                 double savedIntensity = Config.GetIntensity(savedEffect);
-                if (savedIntensity != lastAppliedIntensity)
+                if (savedIntensity != _lastAppliedIntensity)
                 {
                     mat.SetShaderParameter(_intensityKey, savedIntensity);
-                    lastAppliedIntensity = savedIntensity;
+                    _lastAppliedIntensity = savedIntensity;
                 }
             }
 
             UpdateHolderReference();
 
-            if (!IsInstanceValid(cardHolder))
+            if (!IsInstanceValid(_cardHolder))
                 return;
 
             float targetX = 0;
             float targetY = 0;
 
             bool hovered =
-                cardHolder is NHandCardHolder { ZIndex: > 0 }
-                || (cardHolder.Hitbox is { IsEnabled: true } && IsHovered(cardHolder.Hitbox));
+                _cardHolder is NHandCardHolder { ZIndex: > 0 }
+                || (_cardHolder.Hitbox is { IsEnabled: true } hb && hb._isHovered);
 
             if (hovered)
             {
-                Vector2 offset = cardRoot.GetGlobalMousePosition() - cardRoot.GlobalPosition;
-                Vector2 scale = cardRoot.GetGlobalTransform().Scale.Max(0.01f) * 256f;
+                Vector2 offset = _cardRoot.GetGlobalMousePosition() - _cardRoot.GlobalPosition;
+                Vector2 scale = _cardRoot.GetGlobalTransform().Scale.Max(0.01f) * 256f;
 
                 targetX = offset.Y / scale.X * -MaxTilt;
                 targetY = offset.X / scale.Y * MaxTilt;
@@ -186,12 +182,6 @@ public partial class ShaderController
     [HarmonyPatch(typeof(NCard), nameof(NCard.ActivateRewardScreenGlow))]
     public static class CardGlowBelowViewportPatch
     {
-        private static readonly AccessTools.FieldRef<NCard, Node> RareGlowRef =
-            AccessTools.FieldRefAccess<NCard, Node>("_rareGlow");
-
-        private static readonly AccessTools.FieldRef<NCard, Node> UncommonGlowRef =
-            AccessTools.FieldRefAccess<NCard, Node>("_uncommonGlow");
-
         [HarmonyPostfix]
         public static void Postfix(NCard __instance)
         {
@@ -203,9 +193,8 @@ public partial class ShaderController
             if (cardRoot == null)
                 return;
 
-            GpuParticles2D glow = (GpuParticles2D)(
-                RareGlowRef(__instance) ?? UncommonGlowRef(__instance)
-            );
+            GpuParticles2D? glow =
+                (GpuParticles2D?)__instance._rareGlow ?? __instance._uncommonGlow;
 
             if (glow != null && GodotObject.IsInstanceValid(glow) && glow.GetParent() == body)
             {

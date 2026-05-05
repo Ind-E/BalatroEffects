@@ -53,7 +53,9 @@ public static class EasePatches
     static class NCardHolderEase
     {
         [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> Transpiler(
+            IEnumerable<CodeInstruction> instructions
+        )
         {
             var codes = new CodeMatcher(instructions);
 
@@ -81,7 +83,9 @@ public static class EasePatches
     static class NHandCardHolderEase
     {
         [HarmonyTranspiler]
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        public static IEnumerable<CodeInstruction> Transpiler(
+            IEnumerable<CodeInstruction> instructions
+        )
         {
             var codes = new CodeMatcher(instructions);
 

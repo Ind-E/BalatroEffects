@@ -224,7 +224,7 @@ public partial class InspectScreen
     }
 
     [HarmonyPatch(typeof(NInspectCardScreen), "SetCard")]
-    public static class SetCardPatch
+    static class SetCardPatch
     {
         public static void Postfix(
             NInspectCardScreen __instance,

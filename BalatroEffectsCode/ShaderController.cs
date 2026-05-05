@@ -179,7 +179,7 @@ public partial class ShaderController
     }
 
     [HarmonyPatch(typeof(NCard), nameof(NCard.ActivateRewardScreenGlow))]
-    public static class CardGlowBelowViewportPatch
+    public static class CardRewardGlowBelowViewportPatch
     {
         [HarmonyPostfix]
         public static void Postfix(NCard __instance)

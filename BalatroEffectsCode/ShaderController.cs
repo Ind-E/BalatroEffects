@@ -19,11 +19,13 @@ public partial class ShaderController
         "res://BalatroEffects/shaders/balatro_effects.gdshader"
     );
 
+    private const string _viewportContainerName = "BalatroShaderViewportContainer";
+
     public static void ApplyShader(NCard cardRoot)
     {
         if (
-            cardRoot.HasNode("BalatroShaderViewportContainer")
-            || cardRoot.GetNodeOrNull<Control>("CardContainer") is not Control cardContainer
+            cardRoot.GetNodeOrNull<Control>("CardContainer") is not Control cardContainer
+            || cardContainer.HasNode(_viewportContainerName)
             || cardRoot?.Model?.Id?.ToString() is not string cardId
         )
         {
@@ -32,14 +34,18 @@ public partial class ShaderController
 
         var size = new Vector2I(480, 480);
 
-        var mat = new ShaderMaterial { Shader = EffectsShader };
+        var fxMat = new ShaderMaterial { Shader = EffectsShader };
         float seed = cardRoot.GetHashCode() % 10000 / 10.0f;
-        mat.SetShaderParameter(_seedKey, seed);
+        fxMat.SetShaderParameter(_seedKey, seed);
 
-        var viewportContainer = new ShaderContainer
+        int savedEffect = Config.GetEffect(cardId);
+        fxMat.SetShaderParameter(_effectModeKey, savedEffect);
+        fxMat.SetShaderParameter(_intensityKey, Config.GetIntensity(savedEffect));
+
+        var fxContainer = new ShaderContainer
         {
-            Material = mat,
-            Name = "BalatroShaderViewportContainer",
+            Material = fxMat,
+            Name = _viewportContainerName,
             TextureFilter = TextureFilterEnum.LinearWithMipmaps,
             Size = size,
             Stretch = true,
@@ -49,20 +55,48 @@ public partial class ShaderController
             CardId = cardId,
         };
 
-        var viewport = new SubViewport { TransparentBg = true, Size = size };
+        var fxViewport = new SubViewport { TransparentBg = true, Disable3D = true };
+        var fxRoot = new Control() { Position = size / 2 };
 
-        cardContainer.Position = size / 2;
+        var tiltMat = new ShaderMaterial { Shader = EffectsShader };
+        var tiltContainer = new ShaderContainer
+        {
+            Material = tiltMat,
+            TextureFilter = TextureFilterEnum.LinearWithMipmaps,
+            Size = size,
+            Stretch = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Position = -size / 2,
+            PivotOffset = size / 2,
+            TiltOnly = true,
+        };
 
-        cardRoot.RemoveChild(cardContainer);
-        cardRoot.AddChild(viewportContainer);
-        viewportContainer.AddChild(viewport);
-        viewport.AddChild(cardContainer);
+        var tiltViewport = new SubViewport { TransparentBg = true, Disable3D = true };
+        var tiltRoot = new Control() { Position = size / 2 };
 
-        int savedEffect = Config.GetEffect(cardId);
-        mat.SetShaderParameter(_effectModeKey, savedEffect);
+        var shadow = cardContainer.GetNodeOrNull<TextureRect>("Shadow");
+        var highlight = cardContainer.GetNodeOrNull<NCardHighlight>("Highlight");
 
-        double savedIntensity = Config.GetIntensity(savedEffect);
-        mat.SetShaderParameter(_intensityKey, savedIntensity);
+        foreach (Node child in cardContainer.GetChildren())
+        {
+            cardContainer.RemoveChild(child);
+            if (child == shadow || child == highlight)
+            {
+                tiltRoot.AddChild(child);
+            }
+            else
+            {
+                fxRoot.AddChild(child);
+            }
+        }
+
+        tiltViewport.AddChild(tiltRoot);
+        tiltContainer.AddChild(tiltViewport);
+        cardContainer.AddChild(tiltContainer);
+
+        fxViewport.AddChild(fxRoot);
+        fxContainer.AddChild(fxViewport);
+        cardContainer.AddChild(fxContainer);
     }
 
     private partial class ShaderContainer : SubViewportContainer
@@ -78,9 +112,11 @@ public partial class ShaderController
         public string? CardId;
         public ShaderMaterial? mat;
 
+        public bool TiltOnly;
+
         public override void _Ready()
         {
-            _cardRoot = GetParent<Control>();
+            _cardRoot = GetParent<Control>().GetParent<Control>();
             mat = Material as ShaderMaterial;
 
             if (string.IsNullOrEmpty(CardId) && _cardRoot is NCard card)
@@ -129,7 +165,7 @@ public partial class ShaderController
 
             CheckForIdUpdate();
 
-            if (!string.IsNullOrEmpty(CardId))
+            if (!string.IsNullOrEmpty(CardId) && !TiltOnly)
             {
                 int savedEffect = Config.GetEffect(CardId);
                 if (savedEffect != _lastAppliedEffect)
@@ -170,38 +206,11 @@ public partial class ShaderController
             targetX = Mathf.Clamp(targetX, -MaxTilt, MaxTilt);
             targetY = Mathf.Clamp(targetY, -MaxTilt, MaxTilt);
 
-            float curX = (float)mat.GetShaderParameter("x_rot");
-            float curY = (float)mat.GetShaderParameter("y_rot");
+            float curX = (float)mat.GetShaderParameter(_xRotKey);
+            float curY = (float)mat.GetShaderParameter(_yRotKey);
 
-            mat.SetShaderParameter("x_rot", Mathf.Lerp(curX, targetX, LerpSpeed));
-            mat.SetShaderParameter("y_rot", Mathf.Lerp(curY, targetY, LerpSpeed));
-        }
-    }
-
-    [HarmonyPatch(typeof(NCard), nameof(NCard.ActivateRewardScreenGlow))]
-    public static class CardRewardGlowBelowViewportPatch
-    {
-        [HarmonyPostfix]
-        public static void Postfix(NCard __instance)
-        {
-            Control? body = __instance.Body;
-            if (body == null)
-                return;
-
-            Node? cardRoot = body.GetParent()?.GetParent()?.GetParent();
-            if (cardRoot == null)
-                return;
-
-            GpuParticles2D? glow =
-                (GpuParticles2D?)__instance._rareGlow ?? __instance._uncommonGlow;
-
-            if (glow != null && GodotObject.IsInstanceValid(glow) && glow.GetParent() == body)
-            {
-                body.RemoveChild(glow);
-
-                cardRoot.AddChildSafely(glow);
-                cardRoot.MoveChild(glow, 0);
-            }
+            mat.SetShaderParameter(_xRotKey, Mathf.Lerp(curX, targetX, LerpSpeed));
+            mat.SetShaderParameter(_yRotKey, Mathf.Lerp(curY, targetY, LerpSpeed));
         }
     }
 }
